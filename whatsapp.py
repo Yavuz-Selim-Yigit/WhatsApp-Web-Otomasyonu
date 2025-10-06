@@ -1,7 +1,10 @@
+# -*- coding: utf-8 -*-
+# ViperaDev — WhatsApp Broadcast Tool
 """
-whatsapp.py — Selenium tabanlı WhatsApp gönderim motoru.
-- Retry YOK (tek deneme).
-- should_stop() ile GUI'den iptal edilebilir.
+Selenium motoru:
+- Retry yok; tek deneme
+- should_stop() ile iptal
+- override_message varsa Excel mesajlarının yerine geçer
 """
 import time, random, urllib.parse
 from typing import Iterable, List, Tuple, Callable, Optional
@@ -22,15 +25,11 @@ from config import (
 from utils import append_failed_log, append_sent_log, now_str
 
 class WhatsAppSender:
-    """
-    Selenium sürücüsünü yönetir ve numaralara mesaj yollar.
-    Headless önerilmez (WA Web tespit edebilir); GUI modunda çalışır.
-    """
     def __init__(self):
         self.driver = None
 
     def setup_driver(self) -> None:
-        """Chrome'u profil klasörü ile ayağa kaldırır; QR tek seferlik olur."""
+        """Chrome'u profil klasörü ile aç; QR tek seferlik olur."""
         opts = Options()
         opts.add_argument(f"--user-data-dir={USER_DATA_DIR}")
         opts.add_argument(f"--profile-directory={PROFILE_DIR}")
@@ -43,7 +42,7 @@ class WhatsAppSender:
         self.driver.maximize_window()
 
     def wait_ready(self, timeout: int = 60) -> None:
-        """WhatsApp Web arayüzünün yüklenmesini bekler (QR sonrası)."""
+        """WhatsApp Web yüklenene kadar bekle."""
         self.driver.get(WA_WEB_HOME)
         try:
             WebDriverWait(self.driver, timeout).until(
@@ -53,17 +52,14 @@ class WhatsAppSender:
             time.sleep(5)
 
     def _send_to_one(self, phone: str, message: str) -> Tuple[bool, str]:
-        """
-        Tek numaraya mesaj yollar. Başarısızsa direkt geçer (retry yok).
-        """
+        """Tek numaraya mesaj gönder, hata varsa yakala."""
         encoded = urllib.parse.quote(message)
         self.driver.get(WA_WEB_SEND.format(phone=phone, text=encoded))
         try:
-            send_btn = WebDriverWait(self.driver, 20).until(
+            btn = WebDriverWait(self.driver, 20).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[data-icon="send"]'))
             )
-            # Click'i JS ile yapmak daha stabil
-            self.driver.execute_script("arguments[0].click();", send_btn)
+            self.driver.execute_script("arguments[0].click();", btn)
             time.sleep(1.2)
             return True, ""
         except Exception as e:
@@ -75,20 +71,20 @@ class WhatsAppSender:
         on_progress: Optional[Callable[[str], None]] = None,
         should_stop: Optional[Callable[[], bool]] = None,
         on_result: Optional[Callable[[SendResult], None]] = None,
+        override_message: Optional[str] = None,
     ) -> List[SendResult]:
-        """
-        should_stop(): GUI'den iptal istendiğinde True dönerse döngü kırılır.
-        on_result(): Her kişi işlendiğinde tek tek sonuç aktarımı (progress bar için).
-        """
+        """Listeyi sırayla gönder ve sonuçları üret."""
         results: List[SendResult] = []
-
         for idx, c in enumerate(contacts, 1):
             if should_stop and should_stop():
-                if on_progress:
-                    on_progress("İptal istendi, gönderim sonlandırılıyor…")
+                if on_progress: on_progress("İptal istendi, gönderim sonlandırılıyor…")
                 break
 
-            msg = (c.message or TEMPLATE_MESSAGE).replace("{name}", c.name or "")
+            # Mesaj seçim önceliği: UI > Excel > TEMPLATE
+            base_msg = (override_message if (override_message and override_message.strip())
+                        else (c.message or TEMPLATE_MESSAGE))
+            msg = base_msg.replace("{name}", c.name or "")
+
             if on_progress:
                 on_progress(f"[{idx}] Gönderiliyor → {c.phone} ({c.name})")
 
@@ -99,36 +95,28 @@ class WhatsAppSender:
                 final_message=msg, row_index=c.row_index, sheet_name=c.sheet_name, source_path=c.source_path
             )
             results.append(result)
-            if on_result:
-                on_result(result)
+            if on_result: on_result(result)
 
             if ok:
                 append_sent_log({"timestamp": ts, "phone": c.phone, "name": c.name, "message": msg})
-                if on_progress:
-                    on_progress(f"✔ Başarılı: {c.phone}")
+                if on_progress: on_progress(f"✔ Başarılı: {c.phone}")
             else:
                 append_failed_log({"timestamp": ts, "phone": c.phone, "name": c.name, "message": msg, "error": err})
-                if on_progress:
-                    on_progress(f"✖ Hata: {c.phone} -> {err}")
+                if on_progress: on_progress(f"✖ Hata: {c.phone} -> {err}")
 
-            # Bekleme sırasında da iptal kontrolü yap
+            # bekleme sırasında iptal kontrolü
             wait_total = random.uniform(MIN_DELAY_SEC, MAX_DELAY_SEC)
-            waited = 0.0
-            step = 0.5  # yarım saniyede bir kontrol
+            waited, step = 0.0, 0.5
             while waited < wait_total:
                 if should_stop and should_stop():
-                    if on_progress:
-                        on_progress("İptal istendi, bekleme kesiliyor…")
+                    if on_progress: on_progress("İptal istendi, bekleme kesiliyor…")
                     break
-                time.sleep(step)
-                waited += step
+                time.sleep(step); waited += step
             if on_progress and waited < wait_total:
                 on_progress("Bekleme iptal edildi.")
-
         return results
 
     def close(self) -> None:
-        """Tarayıcıyı kapatır (kaynakları serbest bırak)."""
         if self.driver:
             self.driver.quit()
             self.driver = None

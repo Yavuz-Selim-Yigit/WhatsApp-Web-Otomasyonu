@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
+# ViperaDev — WhatsApp Broadcast Tool
 """
-results_store.py — Gönderim sonuçlarını RAM'de tut ve görev bitiminde Excel'e yaz.
+Görev bitiminde RAM'deki sonuçları Excel'e tek atış yaz.
 - Broadcast sayfası: phone, name, Status, Timestamp, FinalMessage, Error
-- Summary sayfası: toplam, sent, failed, success_rate (%)
-- Satır renkleme: koşullu biçimlendirme (Status='Sent' yeşil, 'Failed' kırmızı)
+- Summary sayfası: Total, Sent, Failed, SuccessRate(%)
+- Koşullu biçimlendirme ile satır renklendirme
 """
 from typing import List, Dict
 from openpyxl import Workbook
@@ -15,7 +17,6 @@ GREEN = "C6EFCE"
 RED   = "FFC7CE"
 
 class ResultAggregator:
-    """Tüm sonuçları RAM'de tutar; sonunda Excel'e yazar."""
     def __init__(self):
         self.rows: List[Dict[str, str]] = []
 
@@ -36,7 +37,6 @@ class ResultAggregator:
         for row in self.rows:
             ws.append([row.get(h, "") for h in headers])
 
-        # Koşullu biçimlendirme: tüm satırı renkle
         status_col = headers.index("Status") + 1
         max_col_letter = get_column_letter(ws.max_column)
         rng = f"A2:{max_col_letter}{ws.max_row}"
@@ -54,7 +54,7 @@ class ResultAggregator:
                         fill=PatternFill(start_color=RED, end_color=RED, fill_type="solid"))
         )
 
-        # Kolon genişlikleri (hafif optimizasyon)
+        # basit kolon genişlikleri
         for col_idx, h in enumerate(headers, start=1):
             ws.column_dimensions[get_column_letter(col_idx)].width = max(12, min(60, len(h) + 2))
 
@@ -75,18 +75,11 @@ class ResultAggregator:
         ws.column_dimensions["B"].width = 18
 
     def export_excel(self, out_path: str):
-        """
-        RAM'deki verileri tek seferde yeni bir Excel dosyasına yazar.
-        Not: openpyxl yeni kitapta varsayılan 'Sheet' oluşturur; onu silip kendi sayfalarımızı ekliyoruz.
-        """
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         wb = Workbook()
         # Varsayılan boş sayfayı kaldır
-        default = wb.active
-        wb.remove(default)
-
+        wb.remove(wb.active)
         self._write_broadcast_sheet(wb)
         self._write_summary_sheet(wb)
-
         wb.save(out_path)
         wb.close()

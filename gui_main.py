@@ -1,18 +1,21 @@
+# -*- coding: utf-8 -*-
+# ViperaDev — WhatsApp Broadcast Tool
 """
-gui_main.py — PyQt5 ana ekran (görsel iyileştirmeli).
-- Kart düzeni
-- Progress bar + sayaçlar
-- Başarı/Hata rozetleri
+PyQt5 GUI:
+- SADECE Excel (.xlsx/.xls)
+- Mesajı UI'dan yaz, istersen Excel 'message'larını override et
+- Kart tasarım, progress bar, istatistik rozetleri
 - Açık/Koyu tema anahtarı
-- 'Klasörü Aç' butonu
+- Planlı başlatma + İptal
+- İş bitiminde klasör açma
 """
 import os, shutil, sys, subprocess, time
 from datetime import datetime
 from PyQt5 import QtWidgets, QtGui, QtCore
 from typing import List
-from data_models import Contact
+from data_models import Contact, SendResult
 from utils import load_contacts, now_str
-from whatsapp import WhatsAppSender, SendResult
+from whatsapp import WhatsAppSender
 from results_store import ResultAggregator
 from utils_paths import make_run_output_dir
 from config import OUTPUT_ROOT_DIRNAME, OUTPUT_XLSX_NAME, SENT_LOG_PATH, FAILED_LOG_PATH
@@ -31,16 +34,18 @@ def open_folder(path: str):
         subprocess.Popen(["xdg-open", path])
 
 class SenderWorker(QtCore.QThread):
+    """Arka planda gönderimi yürüten iş parçacığı."""
     progress = QtCore.pyqtSignal(str)
     finished = QtCore.pyqtSignal(str)        # out_dir path
-    tick = QtCore.pyqtSignal(object)         # SendResult (tek tek)
+    tick = QtCore.pyqtSignal(object)         # SendResult
 
-    def __init__(self, contacts: List[Contact], start_at: datetime = None, parent=None):
+    def __init__(self, contacts: List[Contact], start_at: datetime = None, override_message: str = "", parent=None):
         super().__init__(parent)
         self.contacts = contacts
         self._agg = ResultAggregator()
         self._stop = False
         self._start_at = start_at
+        self._override_message = (override_message or "").strip()
 
     def request_stop(self): self._stop = True
     def _should_stop(self) -> bool: return self._stop
@@ -76,7 +81,8 @@ class SenderWorker(QtCore.QThread):
 
             results = sender.broadcast(
                 self.contacts, on_progress=cb_log,
-                should_stop=self._should_stop, on_result=cb_result
+                should_stop=self._should_stop, on_result=cb_result,
+                override_message=self._override_message
             )
 
             for r in results:
@@ -114,15 +120,11 @@ class MainWindow(QtWidgets.QWidget):
         super().__init__()
         if os.path.exists(ASSETS_APP_ICON):
             self.setWindowIcon(nice_icon(ASSETS_APP_ICON))
-        self.setWindowTitle("WhatsApp Broadcast")
-        self.setMinimumSize(980, 680)
+        self.setWindowTitle("WhatsApp Broadcast — ViperaDev")
+        self.setMinimumSize(980, 720)
         self._worker = None
         self._last_out_dir = ""
-        self._total = 0
-        self._done = 0
-        self._ok = 0
-        self._fail = 0
-        self._dark = True  # varsayılan koyu tema
+        self._dark = True
 
         # Üst başlık kartı
         self.header_card = QtWidgets.QFrame(objectName="Card")
@@ -130,93 +132,62 @@ class MainWindow(QtWidgets.QWidget):
         self.header_title = QtWidgets.QLabel("WhatsApp Broadcast", objectName="Title")
         self.theme_toggle = QtWidgets.QPushButton("Tema: Koyu/Açık", objectName="Secondary")
         self.theme_toggle.clicked.connect(self._toggle_theme)
-
         self._load_logo()
+        hbox = QtWidgets.QHBoxLayout(self.header_card); hbox.setContentsMargins(16,16,16,16)
+        left = QtWidgets.QHBoxLayout(); left.setSpacing(12); left.addWidget(self.header_logo); left.addWidget(self.header_title)
+        hbox.addLayout(left, 1); hbox.addWidget(self.theme_toggle)
 
-        hbox = QtWidgets.QHBoxLayout(self.header_card)
-        hbox.setContentsMargins(16, 16, 16, 16)
-        left = QtWidgets.QHBoxLayout()
-        left.setSpacing(12)
-        left.addWidget(self.header_logo)
-        left.addWidget(self.header_title)
-        hbox.addLayout(left, 1)
-        hbox.addWidget(self.theme_toggle)
-
-        # Girdi kartı
+        # Girdi kartı (Excel seçimi + filtre + planlama)
         self.input_card = QtWidgets.QFrame(objectName="Card")
-        self.path_edit = QtWidgets.QLineEdit()
-        self.path_edit.setPlaceholderText("contacts.csv veya contacts.xlsx")
-        self.btn_browse = QtWidgets.QPushButton("Dosya Seç")
-        self.btn_browse.setObjectName("Secondary")
-        self.chk_only_empty_status = QtWidgets.QCheckBox("Sadece Status'u boş/“Sent olmayan”ları gönder")
+        self.path_edit = QtWidgets.QLineEdit(); self.path_edit.setPlaceholderText("contacts.xlsx veya contacts.xls")
+        self.btn_browse = QtWidgets.QPushButton("Excel Seç"); self.btn_browse.setObjectName("Secondary")
+        self.chk_only_empty_status = QtWidgets.QCheckBox("Sadece Status'u boş / 'Sent' olmayanları gönder")
         self.chk_schedule = QtWidgets.QCheckBox("Planlı başlat")
         self.datetime_edit = QtWidgets.QDateTimeEdit(QtCore.QDateTime.currentDateTime())
-        self.datetime_edit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        self.datetime_edit.setCalendarPopup(True)
+        self.datetime_edit.setDisplayFormat("yyyy-MM-dd HH:mm:ss"); self.datetime_edit.setCalendarPopup(True)
         self.datetime_edit.setEnabled(False)
         self.chk_schedule.toggled.connect(lambda c: self.datetime_edit.setEnabled(c))
+        grid = QtWidgets.QGridLayout(self.input_card); grid.setContentsMargins(16,16,16,16)
+        grid.addWidget(QtWidgets.QLabel("Excel Dosyası:"), 0, 0); grid.addWidget(self.path_edit, 0, 1); grid.addWidget(self.btn_browse, 0, 2)
+        grid.addWidget(self.chk_only_empty_status, 1, 0, 1, 3)
+        grid.addWidget(self.chk_schedule, 2, 0); grid.addWidget(self.datetime_edit, 2, 1, 1, 2)
 
-        grid = QtWidgets.QGridLayout(self.input_card)
-        grid.setContentsMargins(16,16,16,16)
-        grid.addWidget(QtWidgets.QLabel("Liste Dosyası:"), 0, 0)
-        grid.addWidget(self.path_edit, 0, 1)
-        grid.addWidget(self.btn_browse, 0, 2)
-        grid.addWidget(self.chk_only_empty_status, 1, 0, 1, 2)
-        grid.addWidget(self.chk_schedule, 2, 0)
-        grid.addWidget(self.datetime_edit, 2, 1, 1, 2)
+        # Mesaj kartı (UI’dan mesaj yazma)
+        self.msg_card = QtWidgets.QFrame(objectName="Card")
+        self.txt_message = QtWidgets.QPlainTextEdit()
+        self.txt_message.setPlaceholderText("Mesaj şablonunu yaz (ör. \"Merhaba {name}! Toplantımız 19:00'da.\")")
+        self.chk_use_ui_message = QtWidgets.QCheckBox("Bu mesajı kullan (Excel'deki 'message' değerlerini geçersiz kıl)")
+        lay_msg = QtWidgets.QVBoxLayout(self.msg_card); lay_msg.setContentsMargins(16,16,16,16)
+        lay_msg.addWidget(QtWidgets.QLabel("Mesaj (UI):"))
+        lay_msg.addWidget(self.txt_message)
+        lay_msg.addWidget(self.chk_use_ui_message)
 
         # Kontrol/istatistik kartı
         self.control_card = QtWidgets.QFrame(objectName="Card")
         self.btn_start = QtWidgets.QPushButton("Gönderimi Başlat")
-        self.btn_cancel = QtWidgets.QPushButton("İptal")
-        self.btn_cancel.setObjectName("Secondary")
-        self.btn_cancel.setEnabled(False)
-        self.btn_open_folder = QtWidgets.QPushButton("Klasörü Aç")
-        self.btn_open_folder.setObjectName("Secondary")
-        self.btn_open_folder.setEnabled(False)
-
-        self.progress = QtWidgets.QProgressBar()
-        self.progress.setValue(0)
-
+        self.btn_cancel = QtWidgets.QPushButton("İptal"); self.btn_cancel.setObjectName("Secondary"); self.btn_cancel.setEnabled(False)
+        self.btn_open_folder = QtWidgets.QPushButton("Klasörü Aç"); self.btn_open_folder.setObjectName("Secondary"); self.btn_open_folder.setEnabled(False)
+        self.progress = QtWidgets.QProgressBar(); self.progress.setValue(0)
         self.badge_total = QtWidgets.QLabel("Toplam: 0", objectName="Badge")
-        self.badge_total.setProperty("class", "badge")
         self.badge_ok    = QtWidgets.QLabel("Başarılı: 0", objectName="BadgeOk")
-        self.badge_ok.setObjectName("Badge")
-        self.badge_ok.setProperty("id","ok")
-        self.badge_ok.setStyleSheet("")  # QSS’de #BadgeOk için ayrı stil var
-        self.badge_ok.setObjectName("BadgeOk")
         self.badge_fail  = QtWidgets.QLabel("Hatalı: 0", objectName="BadgeFail")
-
-        ctr = QtWidgets.QGridLayout(self.control_card)
-        ctr.setContentsMargins(16,16,16,16)
-        ctr.addWidget(self.btn_start, 0, 0)
-        ctr.addWidget(self.btn_cancel, 0, 1)
-        ctr.addWidget(self.btn_open_folder, 0, 2)
+        ctr = QtWidgets.QGridLayout(self.control_card); ctr.setContentsMargins(16,16,16,16)
+        ctr.addWidget(self.btn_start, 0, 0); ctr.addWidget(self.btn_cancel, 0, 1); ctr.addWidget(self.btn_open_folder, 0, 2)
         ctr.addWidget(self.progress, 1, 0, 1, 3)
-        badges = QtWidgets.QHBoxLayout()
-        badges.addWidget(self.badge_total)
-        badges.addWidget(self.badge_ok)
-        badges.addWidget(self.badge_fail)
-        badges.addStretch(1)
+        badges = QtWidgets.QHBoxLayout(); badges.addWidget(self.badge_total); badges.addWidget(self.badge_ok); badges.addWidget(self.badge_fail); badges.addStretch(1)
         ctr.addLayout(badges, 2, 0, 1, 3)
 
         # Log kartı
         self.log_card = QtWidgets.QFrame(objectName="Card")
-        self.log_edit = QtWidgets.QPlainTextEdit()
-        self.log_edit.setReadOnly(True)
-        lay_log = QtWidgets.QVBoxLayout(self.log_card)
-        lay_log.setContentsMargins(12,12,12,12)
+        self.log_edit = QtWidgets.QPlainTextEdit(); self.log_edit.setReadOnly(True)
+        lay_log = QtWidgets.QVBoxLayout(self.log_card); lay_log.setContentsMargins(12,12,12,12)
         lay_log.addWidget(QtWidgets.QLabel("Günlük (Log):", objectName="BadgeInfo"))
         lay_log.addWidget(self.log_edit)
 
         # Ana yerleşim
-        root = QtWidgets.QVBoxLayout(self)
-        root.setContentsMargins(16,16,16,16)
-        root.setSpacing(12)
-        root.addWidget(self.header_card)
-        root.addWidget(self.input_card)
-        root.addWidget(self.control_card)
-        root.addWidget(self.log_card, 1)
+        root = QtWidgets.QVBoxLayout(self); root.setContentsMargins(16,16,16,16); root.setSpacing(12)
+        root.addWidget(self.header_card); root.addWidget(self.input_card); root.addWidget(self.msg_card)
+        root.addWidget(self.control_card); root.addWidget(self.log_card, 1)
 
         # Sinyaller
         self.btn_browse.clicked.connect(self._choose_file)
@@ -224,21 +195,18 @@ class MainWindow(QtWidgets.QWidget):
         self.btn_cancel.clicked.connect(self._cancel_send)
         self.btn_open_folder.clicked.connect(self._open_last_folder)
 
-        # Tema uygula
         apply_theme(QtWidgets.QApplication.instance(), True)
 
+    # --- Tema/Logo
     def _toggle_theme(self):
         self._dark = not self._dark
         apply_theme(QtWidgets.QApplication.instance(), self._dark)
 
     def _load_logo(self):
         pix = QtGui.QPixmap(ASSETS_LOGO_PATH)
-        if not pix.isNull():
-            self.header_logo.setPixmap(pix.scaledToHeight(36, QtCore.Qt.SmoothTransformation))
-        else:
-            self.header_logo.setText("📣")
+        self.header_logo.setPixmap(pix.scaledToHeight(36, QtCore.Qt.SmoothTransformation) if not pix.isNull() else QtGui.QPixmap())
 
-    # ---- Yardımcılar
+    # --- Yardımcılar
     def _log(self, text: str):
         ts = datetime.now().strftime("%H:%M:%S")
         self.log_edit.appendPlainText(f"[{ts}] {text}")
@@ -246,8 +214,7 @@ class MainWindow(QtWidgets.QWidget):
 
     def _choose_file(self):
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Kişi listesi seç", "",
-            "Excel Files (*.xlsx *.xls);;CSV Files (*.csv);;All Files (*)"
+            self, "Excel dosyası seç", "", "Excel Files (*.xlsx *.xls);;All Files (*)"
         )
         if path:
             self.path_edit.setText(path)
@@ -258,7 +225,7 @@ class MainWindow(QtWidgets.QWidget):
         for c in contacts:
             s = (c.input_status or "").strip().lower()
             if c.input_status is None:
-                filtered.append(c)
+                filtered.append(c)  # status yoksa tamamı gönderilebilir
             else:
                 if s == "" or s == " ":
                     filtered.append(c)
@@ -267,10 +234,6 @@ class MainWindow(QtWidgets.QWidget):
         return filtered
 
     def _reset_stats(self, total: int):
-        self._total = total
-        self._done = 0
-        self._ok = 0
-        self._fail = 0
         self.progress.setMaximum(max(1, total))
         self.progress.setValue(0)
         self.badge_total.setText(f"Toplam: {total}")
@@ -278,28 +241,33 @@ class MainWindow(QtWidgets.QWidget):
         self.badge_fail.setText("Hatalı: 0")
 
     def _on_tick(self, res: SendResult):
-        self._done += 1
-        if res.ok: self._ok += 1
-        else:      self._fail += 1
-        self.progress.setValue(self._done)
-        self.badge_ok.setText(f"Başarılı: {self._ok}")
-        self.badge_fail.setText(f"Hatalı: {self._fail}")
+        val = self.progress.value() + 1
+        self.progress.setValue(val)
+        # rozetleri güncelle
+        ok = int(self.badge_ok.text().split(":")[-1]) + (1 if res.ok else 0)
+        fail = int(self.badge_fail.text().split(":")[-1]) + (0 if res.ok else 1)
+        self.badge_ok.setText(f"Başarılı: {ok}")
+        self.badge_fail.setText(f"Hatalı: {fail}")
 
-    # ---- Başlat / İptal / Bitir
+    # --- Başlat / İptal / Bitir
     def _start_send(self):
-        path = self.path_edit.text().strip() or "contacts.csv"
+        path = self.path_edit.text().strip()
+        if not path:
+            self._log("HATA: Excel dosyası seçilmedi.")
+            return
         if not os.path.exists(path):
             self._log(f"HATA: Dosya bulunamadı → {path}")
             return
         try:
             contacts = load_contacts(path)
-            if not contacts:
-                self._log("Uyarı: Liste boş.")
-                return
         except Exception as e:
-            self._log(f"Dosya okuma hatası: {e}")
+            self._log(f"Excel okuma hatası: {e}")
+            return
+        if not contacts:
+            self._log("Uyarı: Liste boş.")
             return
 
+        # Filtre
         if self.chk_only_empty_status.isChecked():
             before = len(contacts)
             contacts = self._filter_only_empty_status(contacts)
@@ -308,6 +276,15 @@ class MainWindow(QtWidgets.QWidget):
             self._log("Gönderilecek kayıt kalmadı.")
             return
 
+        # UI mesaj override
+        override_message = ""
+        if self.chk_use_ui_message.isChecked():
+            override_message = (self.txt_message.toPlainText() or "").strip()
+            if not override_message:
+                self._log("HATA: 'Bu mesajı kullan' seçili ama mesaj boş.")
+                return
+
+        # Planlı başlatma
         start_at = None
         if self.chk_schedule.isChecked():
             qdt = self.datetime_edit.dateTime()
@@ -316,6 +293,7 @@ class MainWindow(QtWidgets.QWidget):
                 self._log("Planlı başlatma zamanı geçmiş. İleri bir zaman seç.")
                 return
 
+        # UI state
         self._reset_stats(len(contacts))
         self.btn_start.setEnabled(False)
         self.btn_cancel.setEnabled(True)
@@ -323,7 +301,8 @@ class MainWindow(QtWidgets.QWidget):
         self._last_out_dir = ""
         self._log(f"{len(contacts)} kişi yüklendi. Gönderim başlıyor…")
 
-        self._worker = SenderWorker(contacts, start_at=start_at)
+        # Worker
+        self._worker = SenderWorker(contacts, start_at=start_at, override_message=override_message)
         self._worker.progress.connect(self._log)
         self._worker.tick.connect(self._on_tick)
         self._worker.finished.connect(self._on_finished)

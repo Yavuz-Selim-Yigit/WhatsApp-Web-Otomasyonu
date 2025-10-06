@@ -1,27 +1,28 @@
+# -*- coding: utf-8 -*-
+# ViperaDev — WhatsApp Broadcast Tool
 """
-config.py — Uygulama genel ayarları ve sabitleri.
-Tüm modüller buradan okur; tek yerden yönetilir.
+Tüm sabitler ve ayarlar:
+- WhatsApp profil dizini
+- Zamanlama ve anti-spam aralıkları
+- Çıktı dosyaları/klasörleri
 """
 import os
 
-# WhatsApp Web profil klasörü (QR'ı her seferinde okutmayı önler)
+# WhatsApp Web kullanıcı profili (QR'ı tekrar okutmayı önler)
 USER_DATA_DIR = os.path.join(os.path.expanduser("~"), "whatsapp_profile")
 PROFILE_DIR = "Profile 1"
 
-# Dosya seçiminde varsayılan isim (GUI üzerinden değişebilir)
-DEFAULT_CSV_PATH = "contacts.csv"
-
-# Anti-spam için rastgele bekleme aralığı (saniye)
+# Rastgele bekleme aralığı (anti-spam)
 MIN_DELAY_SEC = 15
 MAX_DELAY_SEC = 45
 
-# Başarısız tek numara için tekrar deneme hakkı (BU SÜRÜMDE KULLANILMIYOR)
+# Retry SABİTİ kalsın ama kullanılmıyor (isteğin doğrultusunda)
 MAX_RETRIES = 2
 
-# CSV'de 'message' boşsa kullanılacak şablon
+# Excel’de message boşsa kullanılacak şablon
 TEMPLATE_MESSAGE = "Merhaba {name}! Bu bir test mesajıdır."
 
-# Canlı loglar (iş sırasında güvenlik ağı)
+# Canlı CSV loglar (görev sırasında güvenlik ağı)
 SENT_LOG_PATH = "sent_log.csv"
 FAILED_LOG_PATH = "failed_log.csv"
 

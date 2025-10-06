@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
+# ViperaDev — WhatsApp Broadcast Tool
 """
-data_models.py — Basit veri sınıfları (okunabilirlik ve tip güvenliği).
+Veri sınıfları (okunabilirlik ve tip güvenliği için dataclass kullanımı)
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -9,11 +11,11 @@ class Contact:
     phone: str
     name: str = ""
     message: str = ""
-    # Giriş dosyasındaki satır/sayfa bilgileri (raporlama/izleme için)
+    # Referans amaçlı metadata (raporlama)
     row_index: Optional[int] = None
     sheet_name: Optional[str] = None
     source_path: Optional[str] = None
-    # Girişten gelen mevcut durum (varsa). Filtrelemede kullanırız.
+    # İsteğe bağlı giriş status (filtre için)
     input_status: Optional[str] = None
 
 @dataclass

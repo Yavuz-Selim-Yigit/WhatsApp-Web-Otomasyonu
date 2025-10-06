@@ -1,5 +1,10 @@
+# -*- coding: utf-8 -*-
+# ViperaDev — WhatsApp Broadcast Tool
 """
-app.py — Uygulamayı başlatır (tema uygular).
+Uygulama giriş noktası.
+- Qt uygulamasını başlatır
+- Varsayılan koyu temayı uygular
+- MainWindow'u gösterir
 """
 import sys
 from PyQt5 import QtWidgets

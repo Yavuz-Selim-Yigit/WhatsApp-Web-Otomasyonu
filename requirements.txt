@@ -1,3 +1,4 @@
+# ViperaDev — WhatsApp Broadcast Tool — requirements
 selenium
 webdriver-manager
 pandas
