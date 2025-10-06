@@ -1,12 +1,10 @@
 """
 whatsapp.py — Selenium tabanlı WhatsApp gönderim motoru.
-Tek iş: WhatsApp Web'e bağlan, mesaj gönder, kapan.
-GUI ya da CLI burayı çağırır; motor kendi içinde modular ve test edilebilir.
+- Retry YOK (tek deneme).
+- should_stop() ile GUI'den iptal edilebilir.
 """
-import time
-import random
-import urllib.parse
-from typing import Iterable, List, Tuple
+import time, random, urllib.parse
+from typing import Iterable, List, Tuple, Callable, Optional
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -19,23 +17,25 @@ from webdriver_manager.chrome import ChromeDriverManager
 from data_models import Contact, SendResult
 from config import (
     USER_DATA_DIR, PROFILE_DIR, WA_WEB_HOME, WA_WEB_SEND,
-    MIN_DELAY_SEC, MAX_DELAY_SEC, MAX_RETRIES, TEMPLATE_MESSAGE
+    MIN_DELAY_SEC, MAX_DELAY_SEC, TEMPLATE_MESSAGE
 )
 from utils import append_failed_log, append_sent_log, now_str
 
 class WhatsAppSender:
-    """Selenium sürücüsünü yönetir ve numaralara mesaj yollar."""
+    """
+    Selenium sürücüsünü yönetir ve numaralara mesaj yollar.
+    Headless önerilmez (WA Web tespit edebilir); GUI modunda çalışır.
+    """
     def __init__(self):
         self.driver = None
 
     def setup_driver(self) -> None:
         """Chrome'u profil klasörü ile ayağa kaldırır; QR tek seferlik olur."""
         opts = Options()
-        opts.add_argument(f"--user-data-dir={USER_DATA_DIR}")   # profil saklama
-        opts.add_argument(f"--profile-directory={PROFILE_DIR}") # profil adı
-        opts.add_argument("--no-sandbox")                       # container/CI için
-        opts.add_argument("--disable-dev-shm-usage")            # bellek sınırlı ortamlarda
-        # Headless *önerilmez* (WA Web tespit edebiliyor)
+        opts.add_argument(f"--user-data-dir={USER_DATA_DIR}")
+        opts.add_argument(f"--profile-directory={PROFILE_DIR}")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
         self.driver = webdriver.Chrome(
             service=Service(ChromeDriverManager().install()),
             options=opts
@@ -50,45 +50,53 @@ class WhatsAppSender:
                 EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='textbox'], canvas"))
             )
         except Exception:
-            # Zorunlu değil: bazı makinelerde geç yüklenir; küçük bekleme bırak.
             time.sleep(5)
 
-    def _send_to_one(self, phone: str, message: str, retries: int = 0) -> Tuple[bool, str]:
+    def _send_to_one(self, phone: str, message: str) -> Tuple[bool, str]:
         """
-        Tek numaraya mesaj yollar. Başarılı mı? Hata varsa metni döner.
+        Tek numaraya mesaj yollar. Başarısızsa direkt geçer (retry yok).
         """
         encoded = urllib.parse.quote(message)
         self.driver.get(WA_WEB_SEND.format(phone=phone, text=encoded))
         try:
-            # 'Gönder' butonu tıklanabilir olana kadar bekle
             send_btn = WebDriverWait(self.driver, 20).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[data-icon="send"]'))
             )
-            # Bazı sistemlerde .click() yerine JS ile tıklamak daha stabil
+            # Click'i JS ile yapmak daha stabil
             self.driver.execute_script("arguments[0].click();", send_btn)
-            time.sleep(1.2)  # ağ/mobil gecikmeleri için mini bekleme
+            time.sleep(1.2)
             return True, ""
         except Exception as e:
-            if retries < MAX_RETRIES:
-                time.sleep(3)
-                return self._send_to_one(phone, message, retries + 1)
             return False, str(e)
 
-    def broadcast(self, contacts: Iterable[Contact], on_progress=None) -> List[SendResult]:
+    def broadcast(
+        self,
+        contacts: Iterable[Contact],
+        on_progress: Optional[Callable[[str], None]] = None,
+        should_stop: Optional[Callable[[], bool]] = None
+    ) -> List[SendResult]:
         """
-        Bir Contact listesine sırayla mesaj yollar.
-        on_progress: GUI'ye canlı bilgi aktarmak için callback (str alır).
+        Bir Contact listesine sırayla mesaj yollar. CSV loglara da yazar.
+        should_stop(): GUI'den iptal istendiğinde True dönerse döngü kırılır.
         """
         results: List[SendResult] = []
+
         for idx, c in enumerate(contacts, 1):
-            # Mesaj seçimi: kişi özel mesaj yoksa şablon + {name} yer tutucu
+            if should_stop and should_stop():
+                if on_progress:
+                    on_progress("İptal istendi, gönderim sonlandırılıyor…")
+                break
+
             msg = (c.message or TEMPLATE_MESSAGE).replace("{name}", c.name or "")
             if on_progress:
                 on_progress(f"[{idx}] Gönderiliyor → {c.phone} ({c.name})")
 
             ok, err = self._send_to_one(c.phone, msg)
             ts = now_str()
-            result = SendResult(phone=c.phone, name=c.name, ok=ok, error=err or None, final_message=msg)
+            result = SendResult(
+                phone=c.phone, name=c.name, ok=ok, error=err or None,
+                final_message=msg, row_index=c.row_index, sheet_name=c.sheet_name, source_path=c.source_path
+            )
             results.append(result)
 
             if ok:
@@ -100,11 +108,19 @@ class WhatsAppSender:
                 if on_progress:
                     on_progress(f"✖ Hata: {c.phone} -> {err}")
 
-            # Rastgele bekleme: spam benzeri paterni kırar
-            wait = random.uniform(MIN_DELAY_SEC, MAX_DELAY_SEC)
-            if on_progress:
-                on_progress(f"{wait:.1f}s bekleniyor…")
-            time.sleep(wait)
+            # Bekleme sırasında da iptal kontrolü yap
+            wait_total = random.uniform(MIN_DELAY_SEC, MAX_DELAY_SEC)
+            waited = 0.0
+            step = 0.5  # yarım saniyede bir kontrol
+            while waited < wait_total:
+                if should_stop and should_stop():
+                    if on_progress:
+                        on_progress("İptal istendi, bekleme kesiliyor…")
+                    break
+                time.sleep(step)
+                waited += step
+            if on_progress and waited < wait_total:
+                on_progress("Bekleme iptal edildi.")
 
         return results
 

@@ -1,5 +1,5 @@
 """
-app.py — Uygulamanın giriş noktası: PyQt5 event loop başlatır.
+app.py — Uygulamayı başlatır (PyQt5 event loop).
 """
 import sys
 from PyQt5 import QtWidgets

@@ -1,14 +1,20 @@
 """
-data_models.py — Tip güvenliği ve okunabilirlik için basit veri sınıfları.
+data_models.py — Basit veri sınıfları (okunabilirlik ve tip güvenliği).
 """
 from dataclasses import dataclass
 from typing import Optional
 
 @dataclass
 class Contact:
-    phone: str           # Ülke koduyla (örn. 905551112233)
-    name: str = ""       # Kişi adı (kişiselleştirme için)
-    message: str = ""    # Kişiye özel mesaj (boşsa template kullanılır)
+    phone: str
+    name: str = ""
+    message: str = ""
+    # Giriş dosyasındaki satır/sayfa bilgileri (raporlama/izleme için)
+    row_index: Optional[int] = None
+    sheet_name: Optional[str] = None
+    source_path: Optional[str] = None
+    # Girişten gelen mevcut durum (varsa). Filtrelemede kullanırız.
+    input_status: Optional[str] = None
 
 @dataclass
 class SendResult:
@@ -16,4 +22,7 @@ class SendResult:
     name: str
     ok: bool
     error: Optional[str] = None
-    final_message: Optional[str] = None  # Gerçekte gönderilen (placeholder dolmuş) mesaj
+    final_message: Optional[str] = None
+    row_index: Optional[int] = None
+    sheet_name: Optional[str] = None
+    source_path: Optional[str] = None

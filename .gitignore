@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+venv/
+.env
+sent_log.csv
+failed_log.csv
+whatsapp_profile/

@@ -1,30 +1,34 @@
 """
-config.py — Uygulama genel ayarları ve sabitler.
-Tek yerde toplayıp diğer modüllerde import ederek tutarlılığı koruruz.
+config.py — Uygulama genel ayarları ve sabitleri.
+Tüm modüller buradan okur; tek yerden yönetilir.
 """
 import os
 
-# Kullanıcı profilinin saklanacağı klasör; QR'ı her seferinde okutmayı önler
-USER_DATA_DIR = os.path.join(os.path.expanduser("~"), "whatsapp_profile")  # ör: C:\Users\Sen\whatsapp_profile
-PROFILE_DIR = "Profile 1"  # Chrome kullanıcı profili adı
+# WhatsApp Web profil klasörü (QR'ı her seferinde okutmayı önler)
+USER_DATA_DIR = os.path.join(os.path.expanduser("~"), "whatsapp_profile")
+PROFILE_DIR = "Profile 1"
 
-# CSV yolu için varsayılan (GUI'de değiştirilebilir)
+# Dosya seçiminde varsayılan isim (GUI üzerinden değişebilir)
 DEFAULT_CSV_PATH = "contacts.csv"
 
-# Gecikme aralığı (anti-spam riskini azaltmak için rastgele bekleme)
+# Anti-spam için rastgele bekleme aralığı (saniye)
 MIN_DELAY_SEC = 15
 MAX_DELAY_SEC = 45
 
-# Başarısız bir gönderim için tekrar deneme sayısı
+# Başarısız tek numara için tekrar deneme hakkı (BU SÜRÜMDE KULLANILMIYOR)
 MAX_RETRIES = 2
 
-# Şablon mesaj (CSV'de message boşsa kullanılır)
+# CSV'de 'message' boşsa kullanılacak şablon
 TEMPLATE_MESSAGE = "Merhaba {name}! Bu bir test mesajıdır."
 
-# Log dosyaları
+# Canlı loglar (iş sırasında güvenlik ağı)
 SENT_LOG_PATH = "sent_log.csv"
 FAILED_LOG_PATH = "failed_log.csv"
 
-# WhatsApp Web URL sabitleri
+# WhatsApp Web URL'leri
 WA_WEB_HOME = "https://web.whatsapp.com"
 WA_WEB_SEND = "https://web.whatsapp.com/send?phone={phone}&text={text}"
+
+# Çıktı konumu: Belgeler/WhatsAppBroadcastRuns/<timestamp>/results.xlsx
+OUTPUT_ROOT_DIRNAME = "WhatsAppBroadcastRuns"
+OUTPUT_XLSX_NAME = "results.xlsx"

@@ -1,0 +1,10 @@
+
+---
+
+## examples/contacts.csv
+```csv
+phone,name,message,status
+905301234567,Ahmet,"Merhaba {name}! Etkinliğimiz 19:00'da.", 
+905551234568,Mehmet,,
+905551234569,Ayşe,"{name} merhaba! Özel teklif bugün.",Sent
+905551234570,,,""
