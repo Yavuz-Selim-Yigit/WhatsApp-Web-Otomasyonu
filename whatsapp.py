@@ -73,11 +73,12 @@ class WhatsAppSender:
         self,
         contacts: Iterable[Contact],
         on_progress: Optional[Callable[[str], None]] = None,
-        should_stop: Optional[Callable[[], bool]] = None
+        should_stop: Optional[Callable[[], bool]] = None,
+        on_result: Optional[Callable[[SendResult], None]] = None,
     ) -> List[SendResult]:
         """
-        Bir Contact listesine sırayla mesaj yollar. CSV loglara da yazar.
         should_stop(): GUI'den iptal istendiğinde True dönerse döngü kırılır.
+        on_result(): Her kişi işlendiğinde tek tek sonuç aktarımı (progress bar için).
         """
         results: List[SendResult] = []
 
@@ -98,6 +99,8 @@ class WhatsAppSender:
                 final_message=msg, row_index=c.row_index, sheet_name=c.sheet_name, source_path=c.source_path
             )
             results.append(result)
+            if on_result:
+                on_result(result)
 
             if ok:
                 append_sent_log({"timestamp": ts, "phone": c.phone, "name": c.name, "message": msg})
