@@ -1,7 +1,0 @@
-# ViperaDev — WhatsApp Broadcast Tool — Gereksinimler
-selenium
-webdriver-manager
-pandas
-PyQt5
-python-dotenv
-openpyxl
