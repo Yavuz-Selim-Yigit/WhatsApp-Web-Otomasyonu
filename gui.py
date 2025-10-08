@@ -10,7 +10,7 @@ import pandas as pd # Sadece type hint'ler ve pd.notna kontrolü için
 from broadcaster_logic import BroadcasterLogic
 
 # --- Global Yapılandırma ---
-VERSION = "ViperaDev Versiyon 2.3 (Modüler GUI)"
+VERSION = "ViperaDev Versiyon 2.3 Beta"
 LOGO_PATH = "assets/logo.png"
 
 
