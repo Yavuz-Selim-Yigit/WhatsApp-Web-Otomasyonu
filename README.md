@@ -1,13 +1,13 @@
-# Sendify
+# WhatsApp Toplu Gönderim Aracı — Kılavuz (README)
 
-Excel'den WhatsApp Web'e kişiselleştirilmiş **toplu mesaj** göndermeyi otomatikleştiren masaüstü araç. Elle tek tek sohbet açma derdini bitirir; hız, tutarlılık ve **raporlanabilirlik** sağlar.
+Excel'den alınan kişi listesine **WhatsApp Web** üzerinden **toplu ve kişiselleştirilmiş mesaj** gönderen masaüstü araç. Manuel tek tek sohbet açıp yazma derdini ortadan kaldırır; hız, tutarlılık ve **raporlanabilirlik** sağlar.
 
-> **Not:** Bu proje resmi WhatsApp API'si **değildir**; WhatsApp Web arayüzünü otomasyonla sürer. Kullanımda WhatsApp'ın Hizmet Şartları ve yerel mevzuat önceliklidir.
+> **Özet:** `phone` (zorunlu), `name` (opsiyonel) ve `message` (opsiyonel) kolonlarını okur. Arayüzde yazdığın şablon metin Excel’deki `message` alanını isterse geçersiz kılar. `{name}` yer tutucu ile kişiselleştirir. WhatsApp Web’i Selenium ile otomatik sürer. Gönderim sonunda renkli **Excel raporu** ve **CSV loglar** üretir.
 
 ---
 
 ## İçindekiler
-- [Genel Bakış](#genel-bakış)
+
 - [Özellikler](#özellikler)
 - [Kurulum](#kurulum)
 - [Kullanım Kılavuzu](#kullanım-kılavuzu)
@@ -15,106 +15,99 @@ Excel'den WhatsApp Web'e kişiselleştirilmiş **toplu mesaj** göndermeyi otoma
 - [Hız Modları](#hız-modları)
 - [Raporlama ve Loglar](#raporlama-ve-loglar)
 - [Proje Yapısı](#proje-yapısı)
+- [Teknik Notlar](#teknik-notlar)
 - [Sık Sorulanlar](#sık-sorulanlar)
-- [Sorun Giderme](#sorun-giderme)
-- [Yol Haritası](#yol-haritası)
-- [Lisans](#lisans)
+- [Riskler ve Sınırlar](#riskler-ve-sınırlar)
+- [Katkı ve Geliştirme](#katkı-ve-geliştirme)
 - [Sürüm Bilgisi](#sürüm-bilgisi)
 
 ---
 
-## Genel Bakış
-
-Sendify, Excel'deki kişi listelerini okuyarak **kişiselleştirilmiş** mesajları WhatsApp Web üzerinden, gerçek klavye girdisi taklidi ile gönderir. İleri/geri izlenebilirlik, hız modları ve zengin raporlama ile güvenli ve şeffaf bir gönderim deneyimi sunar.
-
 ## Özellikler
-- **Kişiselleştirme:** Mesajlarda `{name}` gibi yer tutucular; Excel'deki `name` kolonuyla otomatik doldurma.
-- **Şablonlu Gönderim:** Arayüzdeki metin, Excel'deki `message` alanını isterseniz **geçersiz kılar**.
-- **Hız Modları:** `SAFE`, `FAST`, `TURBO` seçenekleri; risk–hız dengesini sizin belirlemeniz için.
-- **Planlama / Durdurma:** Gönderimi ileri zamana planlayıp başlatabilir, süreçte durdurabilirsiniz.
-- **Gerçek Zamanlı Takip:** İlerleme çubuğu, canlı sayaçlar, log paneli.
-- **Raporlama:** İş bitince `Belgeler/WhatsAppBroadcastRuns/` altında `results.xlsx` (renkli), `sent_log.csv`, `failed_log.csv`.
-- **Tema ve Konfor:** Koyu/açık tema, çoklu buton seçiciler, adaptif beklemeler.
-- **Dayanıklılık:** Çoklu seçici stratejisi, buton görünmüyor/taslakta kalma gibi durumlara karşı koruma.
+
+- **Kişiselleştirme:** Mesajlarda `{name}` gibi yer tutucularla her alıcıya adıyla hitap edebilirsin.
+- **Güvenli Otomasyon:** **SAFE / FAST / TURBO** hız modlarıyla gönderim hızını ve beklemeleri kontrol edersin.
+- **Gerçek Zamanlı Takip:** İlerleme çubuğu, başarı/başarısız sayaçları ve log paneli.
+- **Kapsamlı Raporlama:** İşlem sonunda renkli `results.xlsx`, ayrıca `sent_log.csv` ve `failed_log.csv`.
+- **Planlı Gönderim (opsiyonel):** Belirli bir zamana planlayıp iptal edebilme.
+- **Tema ve Konfor:** Açık/koyu tema, net tipografi, sade arayüz.
 
 ---
 
 ## Kurulum
 
-### Gereksinimler
-- **Python 3.9+**
-- Google Chrome
-- Aşağıdaki Python paketleri (requirements.txt içinde):
+> Gereksinim: **Python 3.x**, Chrome tarayıcı (WhatsApp Web için).
 
-```
-selenium
-webdriver-manager
-pandas
-openpyxl
-customtkinter
-pyinstaller
+1) **Proje dosyalarını hazırla**
+- Depoyu indir ve bir ana klasöre çıkar.
+- `assets/` klasörü oluştur ve `assets/logo.png` dosyanı buraya koy.
+- Ana klasörde şu dosyalar bulunduğundan emin ol: `main.py`, `gui.py`, `broadcaster_logic.py`, `requirements.txt`, `README.md`.
+
+2) **Bağımlılıkları kur**
+```bash
+pip install -r requirements.txt
 ```
 
-### Adımlar
-1. Projeyi indirin ve çıkarın.
-2. Ana klasörde `assets/` oluşturun ve `assets/logo.png` yerleştirin (opsiyonel).
-3. Bağımlılıkları kurun:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Uygulamayı çalıştırın:
-   ```bash
-   python main.py
-   ```
+3) **Uygulamayı çalıştır**
+```bash
+python main.py
+```
 
-> **İpucu:** Chrome oturumunu tekrar QR okutmaya gerek kalmadan korumak için uygulama, kullanıcı profilini kalıcı bir klasörde saklayabilir (örn. `~/whatsapp_profile`).
+> İlk çalıştırmada WhatsApp Web oturumu yoksa QR kodu telefondan okutman istenecektir (tek seferlik).
 
 ---
 
 ## Kullanım Kılavuzu
 
-1. **Excel'i Hazırla:** `phone` (zorunlu), `name` (opsiyonel), `message` (opsiyonel) sütunlarıyla bir dosya oluşturun.
-2. **Dosyayı Seç:** Uygulamada **Dosya Seç** ile Excel'i içe aktarın; listeyi görürsünüz.
-3. **Mesaj Şablonu:** Ana metin kutusuna yazın. `{name}` yer tutucusuyla kişiselleştirin. İsterseniz Excel'deki `message` her satır için geçerli olur.
-4. **Hız Modu:** `SAFE / FAST / TURBO` arasından seçim yapın.
-5. **Başlat:** **Gönderimi BAŞLAT** butonuna tıklayın. Chrome açılır.
-6. **WhatsApp Oturumu:** Gerekirse ilk kullanımda QR'ı telefonunuzdaki WhatsApp ile okutun.
-7. **İzleme ve Raporlar:** İlerlemeyi UI üzerinden takip edin. İşlem bitince rapor klasörü gösterilecektir.
+1. **Excel Hazırlığı:** `phone` (zorunlu), `name` (opsiyonel), `message` (opsiyonel) kolonlarını içeren bir Excel oluştur.
+2. **Dosya Seçimi:** Uygulamada **Dosya Seç** ile Excel’i yükle; kişi listesi arayüzde görünür.
+3. **Mesaj Şablonu ve Hız:** Ana metin kutusuna şablon mesajı yaz. `{name}` yer tutucusunu kullan. Sol menüden hız modunu seç.
+4. **Gönderimi Başlat:** **Gönderimi BAŞLAT** düğmesine bas; Chrome penceresi açılır.
+5. **WhatsApp Oturumu:** Gerekirse ekrandaki QR’ı telefondaki WhatsApp ile tara.
+6. **İzleme & Raporlama:** İlerlemeyi arayüzden takip et. İşlem bitince rapor klasörü bildirilir.
 
 ---
 
 ## Excel Şablonu
 
-| phone        | name      | message                                  |
-|--------------|-----------|-------------------------------------------|
-| +90555XXXXXXX| Ayşe      | Merhaba {name}, etkinliğimize bekleriz!   |
-| +90444YYYYYYY| (boş)     | (boş bırakılabilir; şablon metni kullanır)|
+| phone (zorunlu) | name (ops.)         | message (ops.)              |
+|-----------------|---------------------|-----------------------------|
+| 905000000000    | Yavuz Selim Yiğit   | Merhaba {name}, duyurumuz…  |
+| 905000000000    | —                   | —                           |
 
-- **Zorunlu:** `phone` (uluslararası format önerilir, artı işaretli).
-- **İsteğe bağlı:** `name`, `message`.
-- **Yer tutucu:** `{name}` — satırda `name` yoksa otomatik kaldırılır/boş gelir.
+- `phone`: **ülke kodu + numara** (başında `+` olmasın). Örn: `905551112233`
+- `name`: “Yavuz”, “Selim Y.” vb. Kişiselleştirme için kullanılır.
+- `message`: Dilersen kişi bazlı özel metin. **Arayüzdeki şablon**, bu alanı **geçersiz kılabilir**.
+
+**Yer tutucu örneği:**
+```
+Merhaba {name}, etkinlik duyurumuz var: ...
+```
 
 ---
 
 ## Hız Modları
 
-- **SAFE:** Maksimum bekleme, düşük risk. Yeni hesaplar ve hassas kampanyalar için.
-- **FAST:** Dengeli hız. Çoğu senaryo için önerilir.
-- **TURBO:** En hızlı; hata oranı artabilir, hesap kısıtlaması riski daha yüksektir.
+- **SAFE:** Daha uzun beklemeler; hesap kısıtlama riskini minimize eder.
+- **FAST:** Dengeli hız; çoğu senaryo için idealdir.
+- **TURBO:** En hızlı; agresif hızlandırma hesap kısıtlaması riskini **artırır**.
 
-> Uygulama; buton bulunamadı, taslakta kaldı gibi durumlarda **adaptif beklemeler** ve **çoklu seçici** stratejileri kullanır.
+> Not: Ağ gecikmesi, donanım ve WhatsApp Web davranışlarına göre bekleme süreleri adaptif tutulur.
 
 ---
 
 ## Raporlama ve Loglar
 
-Gönderim bittiğinde otomatik olarak oluşturulur:
+Gönderim sonunda **Belgeler/WhatsAppBroadcastRuns/** altında otomatik oluşturulur:
 
-- `results.xlsx` — Renkli özet: **Başarılı/İptal/Başarısız** durumları.
-- `sent_log.csv` — Gönderilen numaralar ve zaman damgası.
-- `failed_log.csv` — Hata alan satırlar ve temel hata nedeni.
+- **`results.xlsx`**: Renkli, özet ve detay sayfalarıyla sonuçlar.
+- **`sent_log.csv`**: Başarıyla gönderilen kayıtlar.
+- **`failed_log.csv`**: Hatalı/engelli/format dışı telefonlar vb.
 
-Varsayılan konum: `Belgeler/WhatsAppBroadcastRuns/<TARİH-SAAT>/`
+Arayüzde ayrıca:
+- **İlerleme çubuğu**
+- **Başarılı/başarısız sayaçları**
+- **Log paneli** bulunur.
 
 ---
 
@@ -122,140 +115,73 @@ Varsayılan konum: `Belgeler/WhatsAppBroadcastRuns/<TARİH-SAAT>/`
 
 ```
 .
-├── main.py                  # Uygulama başlatıcı
-├── gui.py                   # Arayüz (CustomTkinter/Tk + status/progress)
-├── broadcaster_logic.py     # WhatsApp Web otomasyon mantığı (Selenium)
-├── requirements.txt
-├── README.md
+├── main.py                    # Uygulamayı başlatır
+├── gui.py                     # Arayüz (dosya seçimi, şablon, hız modu, ilerleme)
+├── broadcaster_logic.py       # WhatsApp Web otomasyon akışı, hatalara dayanıklılık
+├── requirements.txt           # Bağımlılıklar
+├── README.md                  # Bu dosya
 └── assets/
-    └── logo.png
+    └── logo.png               # Arayüz logosu
 ```
 
-> Sorumluluk dağılımı (yaklaşık): **gui.py %45**, **broadcaster_logic.py %45**, **main.py %10**.
+**Modül Sorumlulukları (yaklaşık):**
+- **Arayüz (`gui.py`)** ~ %45  
+- **Otomasyon Mantığı (`broadcaster_logic.py`)** ~ %45  
+- **Başlatıcı (`main.py`)** ~ %10
+
+---
+
+## Teknik Notlar
+
+- **WhatsApp Web** resmi API değildir; otomasyon Selenium ile Chrome üzerinde çalışır.
+- **Oturum Kalıcılığı:** Chrome profil klasörü kullanılarak QR tarama genellikle bir kez yapılır.
+- **Çoklu buton seçiciler & adaptif beklemeler:** WhatsApp Web’in arayüz değişimlerine karşı dayanıklılık sağlar.
+- **Planlı Gönderim & İptal:** İleri tarih/saatte gönderimi başlatma ve süreç içinde durdurma desteği (varsa).
+- **Tema:** Açık/koyu tema, sade ve erişilebilir bileşenler.
 
 ---
 
 ## Sık Sorulanlar
 
-**Excel'deki metni mi, şablon metnini mi kullanır?**  
-Varsayılan: Excel satırındaki `message` varsa **o**, yoksa arayüzdeki şablon metni kullanılır.
+**WhatsApp numara doğrulaması yapıyor musunuz?**  
+Hayır. Hatalı formatlar, engelli alıcılar vb. **Failed** olarak raporlanır.
 
-**`{name}` nasıl çalışır?**  
-Satırdaki `name` değeriyle yer değiştirir; yoksa boş kalır veya otomatik kaldırılır.
+**Spam’e karşı garanti var mı?**  
+Hayır. Hız limitleri ve kullanım kuralları kullanıcı sorumluluğundadır. Aşırı agresif hızlandırma hesap kısıtlamasına yol açabilir.
 
-**QR'ı her seferinde okutmak zorunda mıyım?**  
-Hayır. Chrome profil klasörü kalıcıysa bir kere yeterli olur.
+**`{name}` çalışmıyor gibi, neden?**  
+Excel’de `name` boşsa yer tutucu boş kalır. Şablonda `{name}` yazımının doğru olduğundan emin ol.
 
-**Numara engelli/format hatalıysa?**  
-Satır **Failed** olarak raporlanır; detay **failed_log.csv**'dedir.
-
----
-
-## Sorun Giderme
-
-- **Mesaj taslakta kalıyor / Gönderilmiyor:** Hız modunu düşürün (`SAFE`), beklemeleri artırın. Tarayıcı eklentilerini kapatın. Pencerenin görünür olduğundan emin olun.
-- **Buton görünmüyor:** WhatsApp Web güncellemeleri seçicileri bozmuş olabilir; alternatif seçiciler devreye girer. Yine de olmuyorsa güncelleme alın.
-- **QR Sürekli İstiyor:** Profil klasörünün yazılabilir olduğundan ve tek Chrome örneği kullanıldığından emin olun.
-- **Excel okunmuyor:** Dosya açık olabilir; kapatıp tekrar deneyin. `openpyxl` kurulu mu kontrol edin.
+**Numara formatı nasıl olmalı?**  
+`905xxxxxxxxx` gibi; başında `+` ve boşluk/ayraç **olmasın**.
 
 ---
 
-## Yol Haritası
+## Riskler ve Sınırlar
 
-- `{custom1}` gibi ek değişkenler → Excel kolonlarına bağlama  
-- Hata oranına göre otomatik mod geçişi (FAST ↔ SAFE)  
-- A/B metin testleri ve dönüşüm analizi
+- WhatsApp’ın **Hizmet Şartları**, **anti-spam politikaları** ve **yerel mevzuat** önceliklidir.
+- Tarayıcı eklentileri, yavaş bağlantı ve arayüz değişiklikleri “taslakta kalma” veya “buton görünmüyor” gibi sorunlara yol açabilir. Uygulama korumalar içerir, ancak bu durumlar tamamen engellenemeyebilir.
 
 ---
 
-## Lisans
-Bu proje MIT lisansı ile lisanslanmıştır. Ayrıntılar için `LICENSE` dosyasına bakın.
+## Katkı ve Geliştirme
+
+**Önerilen geliştirmeler:**
+- `{custom1}` gibi **ek yer tutucuları** Excel kolonlarına bağlama.
+- **Hata oranına göre otomatik hız modu** (FAST ↔ SAFE) geçişi.
+- **A/B metin testleri** ve dönüş analizi.
+
+**Geliştirme adımları:**
+1. Fork → feature branch → değişiklikleri yap.
+2. Test et ve raporların üretildiğini doğrula.
+3. Açıklayıcı bir PR oluştur.
 
 ---
 
 ## Sürüm Bilgisi
-**ViperaDev Versiyon:** 2.3 (Tema Algılama Düzeltmesi)
 
+**ViperaDev Versiyon 2.3**
+
+> © ViperaDev — “Çok kişiye nazikçe, tek seferde ve izlenebilir şekilde mesaj atma” problemine pratik bir çözüm.
 
 ---
-
-## Gömülü HTML Kılavuz (Statik)
-
-Aşağıda, interaktif öğeler olmadan, **statik** HTML yapısı yer almaktadır. GitHub güvenlik politikaları gereği
-JS/CSS çalıştırılmadığından sekmeler ve grafikler **pasif** durumdadır. Dosyayı `Sendify_guide.html` olarak ayrı açarsanız
-interaktif sürümü kullanabilirsiniz.
-
-<details>
-<summary><strong>HTML’yi göster</strong></summary>
-
-<!-- STATIK HTML BASLANGIC -->
-<div lang="tr">
-  <header>
-    <h1>Sendify</h1>
-    <p>Excel'den WhatsApp'a Kişiselleştirilmiş Mesaj Otomasyonu Kılavuzu</p>
-  </header>
-
-  <nav>
-    <ul style="list-style:none; padding:0; display:flex; gap:8px; flex-wrap:wrap;">
-      <li><strong>Genel Bakış</strong></li>
-      <li>Kurulum</li>
-      <li>Kullanım Kılavuzu</li>
-      <li>Teknik Yapı</li>
-    </ul>
-  </nav>
-
-  <section id="overview">
-    <h2>Araca Genel Bakış</h2>
-    <p>Bu uygulama, Excel'deki kişi listelerine otomatik, toplu ve kişiselleştirilmiş mesaj göndermek için tasarlanmış bir masaüstü aracıdır.</p>
-    <div>
-      <h3>Kişiselleştirme</h3>
-      <p>Mesajlarda <code>{name}</code> gibi yer tutucular kullanarak her alıcıya ismiyle hitap edin.</p>
-      <h3>Güvenli Otomasyon</h3>
-      <p>Hız modları (SAFE, FAST, TURBO) ile gönderim hızını ayarlayın.</p>
-      <h3>Gerçek Zamanlı Takip</h3>
-      <p>İlerleme çubuğu ve anlık durum listesiyle süreci izleyin.</p>
-      <h3>Kapsamlı Raporlama</h3>
-      <p>İşlem sonunda Excel ve CSV loglarıyla sonuçları analiz edin.</p>
-    </div>
-  </section>
-
-  <section id="installation">
-    <h2>Kurulum Adımları</h2>
-    <ol>
-      <li>Projeyi indirin ve bir ana klasöre çıkarın.</li>
-      <li><code>assets/</code> klasörünü oluşturun; <code>assets/logo.png</code> yerleştirin.</li>
-      <li><code>pip install -r requirements.txt</code> komutunu çalıştırın.</li>
-      <li><code>python main.py</code> ile uygulamayı başlatın.</li>
-    </ol>
-  </section>
-
-  <section id="usage">
-    <h2>Kullanım Kılavuzu</h2>
-    <ol>
-      <li>Excel: <code>phone</code> (zorunlu), <code>name</code> (opsiyonel), <code>message</code> (opsiyonel).</li>
-      <li>Uygulamada <em>Dosya Seç</em> ile Excel’i içe aktarın.</li>
-      <li>Mesaj şablonunda <code>{name}</code> kullanın; hız modunu seçin.</li>
-      <li><em>Gönderimi BAŞLAT</em> ile süreci başlatın.</li>
-      <li>Gerekirse WhatsApp QR’ı okutun.</li>
-      <li>Sonunda rapor klasörünü kontrol edin.</li>
-    </ol>
-  </section>
-
-  <section id="structure">
-    <h2>Teknik ve Proje Yapısı</h2>
-<pre>
-.
-├── main.py
-├── gui.py
-├── broadcaster_logic.py
-├── requirements.txt
-├── README.md
-└── assets/
-    └── logo.png
-</pre>
-    <p>Sorumluluk dağılımı: <strong>gui.py %45</strong>, <strong>broadcaster_logic.py %45</strong>, <strong>main.py %10</strong>.</p>
-  </section>
-</div>
-<!-- STATIK HTML BITIS -->
-
-</details>
