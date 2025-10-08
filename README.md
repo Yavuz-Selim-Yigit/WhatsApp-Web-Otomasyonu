@@ -176,3 +176,86 @@ Bu proje MIT lisansı ile lisanslanmıştır. Ayrıntılar için `LICENSE` dosya
 ## Sürüm Bilgisi
 **ViperaDev Versiyon:** 2.3 (Tema Algılama Düzeltmesi)
 
+
+---
+
+## Gömülü HTML Kılavuz (Statik)
+
+Aşağıda, interaktif öğeler olmadan, **statik** HTML yapısı yer almaktadır. GitHub güvenlik politikaları gereği
+JS/CSS çalıştırılmadığından sekmeler ve grafikler **pasif** durumdadır. Dosyayı `Sendify_guide.html` olarak ayrı açarsanız
+interaktif sürümü kullanabilirsiniz.
+
+<details>
+<summary><strong>HTML’yi göster</strong></summary>
+
+<!-- STATIK HTML BASLANGIC -->
+<div lang="tr">
+  <header>
+    <h1>Sendify</h1>
+    <p>Excel'den WhatsApp'a Kişiselleştirilmiş Mesaj Otomasyonu Kılavuzu</p>
+  </header>
+
+  <nav>
+    <ul style="list-style:none; padding:0; display:flex; gap:8px; flex-wrap:wrap;">
+      <li><strong>Genel Bakış</strong></li>
+      <li>Kurulum</li>
+      <li>Kullanım Kılavuzu</li>
+      <li>Teknik Yapı</li>
+    </ul>
+  </nav>
+
+  <section id="overview">
+    <h2>Araca Genel Bakış</h2>
+    <p>Bu uygulama, Excel'deki kişi listelerine otomatik, toplu ve kişiselleştirilmiş mesaj göndermek için tasarlanmış bir masaüstü aracıdır.</p>
+    <div>
+      <h3>Kişiselleştirme</h3>
+      <p>Mesajlarda <code>{name}</code> gibi yer tutucular kullanarak her alıcıya ismiyle hitap edin.</p>
+      <h3>Güvenli Otomasyon</h3>
+      <p>Hız modları (SAFE, FAST, TURBO) ile gönderim hızını ayarlayın.</p>
+      <h3>Gerçek Zamanlı Takip</h3>
+      <p>İlerleme çubuğu ve anlık durum listesiyle süreci izleyin.</p>
+      <h3>Kapsamlı Raporlama</h3>
+      <p>İşlem sonunda Excel ve CSV loglarıyla sonuçları analiz edin.</p>
+    </div>
+  </section>
+
+  <section id="installation">
+    <h2>Kurulum Adımları</h2>
+    <ol>
+      <li>Projeyi indirin ve bir ana klasöre çıkarın.</li>
+      <li><code>assets/</code> klasörünü oluşturun; <code>assets/logo.png</code> yerleştirin.</li>
+      <li><code>pip install -r requirements.txt</code> komutunu çalıştırın.</li>
+      <li><code>python main.py</code> ile uygulamayı başlatın.</li>
+    </ol>
+  </section>
+
+  <section id="usage">
+    <h2>Kullanım Kılavuzu</h2>
+    <ol>
+      <li>Excel: <code>phone</code> (zorunlu), <code>name</code> (opsiyonel), <code>message</code> (opsiyonel).</li>
+      <li>Uygulamada <em>Dosya Seç</em> ile Excel’i içe aktarın.</li>
+      <li>Mesaj şablonunda <code>{name}</code> kullanın; hız modunu seçin.</li>
+      <li><em>Gönderimi BAŞLAT</em> ile süreci başlatın.</li>
+      <li>Gerekirse WhatsApp QR’ı okutun.</li>
+      <li>Sonunda rapor klasörünü kontrol edin.</li>
+    </ol>
+  </section>
+
+  <section id="structure">
+    <h2>Teknik ve Proje Yapısı</h2>
+<pre>
+.
+├── main.py
+├── gui.py
+├── broadcaster_logic.py
+├── requirements.txt
+├── README.md
+└── assets/
+    └── logo.png
+</pre>
+    <p>Sorumluluk dağılımı: <strong>gui.py %45</strong>, <strong>broadcaster_logic.py %45</strong>, <strong>main.py %10</strong>.</p>
+  </section>
+</div>
+<!-- STATIK HTML BITIS -->
+
+</details>
