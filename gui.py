@@ -65,19 +65,18 @@ class WhatsAppGUI(ctk.CTk):
 
         try:
             pil_image = Image.open(LOGO_PATH)
-            pil_image = pil_image.resize((40, 40)) 
-            self.logo_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(40, 40))
-            logo_label = ctk.CTkLabel(logo_frame, text="Broadcast Tool", image=self.logo_image, compound="left", 
-                                     font=ctk.CTkFont(family="Inter", size=18, weight="bold"))
+            pil_image = pil_image.resize((300,300)) 
+            self.logo_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(300, 300))
+            logo_label = ctk.CTkLabel(logo_frame, text=" ", image=self.logo_image, compound="left", 
+                                     font=ctk.CTkFont(family="Inter", size=1, weight="bold"))
         except FileNotFoundError:
-            logo_label = ctk.CTkLabel(logo_frame, text="🔴 Logo Missing", 
-                                     font=ctk.CTkFont(family="Inter", size=18, weight="bold"))
+            
             self._log_to_terminal(f"UYARI: Logo dosyası bulunamadı: {LOGO_PATH}", "error")
         
         logo_label.grid(row=0, column=0, padx=10, pady=20)
         # ---------------------------------------------
 
-        ctk.CTkLabel(self.sidebar_frame, text="Kodlama Desteği", 
+        ctk.CTkLabel(self.sidebar_frame, text="WhatsApp Toplu Mesaj Otomasyonu", 
                      font=ctk.CTkFont(family="Inter", size=16, weight="bold")).grid(row=1, column=0, padx=20, pady=(15, 5))
         
         # Hız Modu Seçimi Kontrolleri
